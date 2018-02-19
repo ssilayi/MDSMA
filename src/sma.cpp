@@ -120,6 +120,7 @@ void initialize_Velocities(int N, double ** v, double m, double T, double &K) {
     for (int n = 0; n < N; n++)
         for (int i = 0; i < 3; i++)
             v[n][i] = dist(engine);
+        
     // Adjust velocities so center-of-mass velocity is zero
     double vCM[3] = {0, 0, 0};
     for (int n = 0; n < N; n++)
@@ -186,11 +187,11 @@ void initialize_configuration(int N, double m, double lc, double &L,
 
 void minimum_image(double &dr, double L){
     
-    if (dr > 0.5*L)
-        dr = dr- L;
+    while (dr > 0.5*L)
+        dr = dr - L;
     
-    if (dr < -0.5*L)
-        dr= dr+L;
+    while (dr < -0.5*L)
+        dr= dr+ L;
     
     return;
 }
@@ -207,6 +208,7 @@ void computeAccelerations(int N, double ** r, double ** a, double **f,
     double rCutOff = 0.49*L;
     
     double sum1 = 0.0, sum2 = 0.0, sum3 = 0.0;
+    double f1[3] = {0.0}, f2[3] = {0.0};
     
     
     //setting to zero
@@ -224,6 +226,11 @@ void computeAccelerations(int N, double ** r, double ** a, double **f,
         sum1 = 0.0;
         sum2 = 0.0;
         sum3 = 0.0;
+        
+        
+        f1[3] = {0.0};
+        f2[3] = {0.0};
+        
         
         for (j = 0; j < i; j++)
         {
@@ -247,25 +254,24 @@ void computeAccelerations(int N, double ** r, double ** a, double **f,
                 {
                     rr = rij  - 1.0 ;
                     
-                    sum1 += A  * exp (-p * rr );
+                    sum1 += A * exp (-p * rr );
                     sum2 += exp (-2.0* q * rr );
                     
-                    double f1 = -(A * p * exp(-p*rr) )/rij;
-                    double f2 = ( q*exp(-2.0*q*rr ) )/rij ;
-                    double f3 =  sqrt( exp(-2.0*q*rr  ) );
                     
-                    double ff = ( f1 + f2/ f3 ) ;
-                    ff = ff;
                     
-                    f[i][0] = f[i][0] - (ff*dx );
-                    f[j][0] = f[j][0] + (ff*dx );
+                    double ff1 = (A * p * exp(-p*rr) )/rij;
+                    double ff2 =  q*q*exp(-2.0*q*(rr) )/(rij*rij);
                     
-                    f[i][1] = f[i][1] - (ff* dy) ;
-                    f[j][1] = f[j][1] + (ff* dy) ;
+                    f1[0] = f1[0] + (ff1*dx);
+                    f1[1] = f1[1] + (ff1*dy);
+                    f1[2] = f1[2] + (ff1*dz);
                     
-                    f[i][2] = f[i][2] - (ff* dz );
-                    f[j][2] = f[j][2] + (ff* dz) ;
                     
+                    f2[0] = f2[0] + (ff2*dx*dx);
+                    f2[1] = f2[1] + (ff2*dy*dy);
+                    f2[2] = f2[2] + (ff2*dz*dz);
+                    
+            
                 }//end if
                 
             }//end if j .ne. i
@@ -276,7 +282,11 @@ void computeAccelerations(int N, double ** r, double ** a, double **f,
         
         U += 0.5 * ( sum1 - sum3 );
         
-        
+        f[i][0] = 0.5*(f1[0] - sqrt(f2[0]));
+        f[i][1] = 0.5*(f1[1] - sqrt(f2[1]));
+        f[i][2] = 0.5*(f1[2] - sqrt(f2[2]));
+                    
+    
         a[i][0] = f[i][0]/m;
         a[i][1] = f[i][1]/m;
         a[i][2] = f[i][2]/m;
@@ -342,7 +352,7 @@ void normalize_gr(int N, int ngr, double * gr, int nbins, double dbin, double L,
     double rho = (double) N/ (L*L*L);
     
     /* Normalize radial distribution g(r) and save  to file*/
-    for (int i=0; i< nbins;i++) {
+    for (int i=0; i< nbins-1;i++) {
         double rr = dbin*(i+0.5);
         double vb=((i+1)*(i+1)*(i+1)-i*i*i)*dbin*dbin*dbin;
         double nid=(4./3.)*M_PI*vb*rho;
@@ -575,7 +585,7 @@ int main(int argc, const char * argv[]){
         
         
        
-        if ( n % 150 == 0  )
+        if ( n % 5 == 0  )
             rescaleVelocities(N, K, T, v);
         
         cout << n << "\t" << iTAvg << "\t" << KAvg << "\t" << UAvg << "\t" << EAvg << "\n";
