@@ -1,0 +1,8 @@
+name of element = Ni
+mass of element = 1.0
+lattice constant (angstrom) = 3.5
+sma parameters = 1.0 1.0 0.03514 17.0 1.19
+number of atoms = 256
+simulation temperature = 500
+time_step  = 0.0001
+md steps = 500000
