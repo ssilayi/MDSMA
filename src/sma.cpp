@@ -1,3 +1,12 @@
+/**
+//  sma.cpp
+//  md_modeling
+//
+//  Created by Swabir Silayi on 2/19/18.
+//  Copyright © 2018 Swabir Silayi. All rights reserved.
+*/
+
+
 #include <math.h>
 #include <stdlib.h>
 #include <iostream>
@@ -107,7 +116,7 @@ void initialize_Positions(int N, double lc, double &L, double ** r) {
 
 void initialize_Velocities(int N, double ** v, double m, double T, double &K) {
     
-    // Gaussian with unit variance
+    //Uniform random
     for (int n = 0; n < N; n++)
         for (int i = 0; i < 3; i++)
             v[n][i] = dist(engine);
@@ -245,15 +254,8 @@ void computeAccelerations(int N, double ** r, double ** a, double **f,
                     double f2 = ( q*exp(-2.0*q*rr ) )/rij ;
                     double f3 =  sqrt( exp(-2.0*q*rr  ) );
                     
-                    double rrc = rCutOff - 1.0;
-                    
-                    double f1c = -(A * p * exp(-p*rrc) )/rij;
-                    double f2c = ( q*exp(-2.0*q*rrc ) )/rij ;
-                    double f3c =  sqrt( exp(-2.0*q*rrc  ) );
-                    
-                    double ffc = -( f1c + f2c/ f3c ) ;
                     double ff = ( f1 + f2/ f3 ) ;
-                    ff = ff+ffc;
+                    ff = ff;
                     
                     f[i][0] = f[i][0] - (ff*dx );
                     f[j][0] = f[j][0] + (ff*dx );
