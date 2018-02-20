@@ -1,9 +1,10 @@
 /**
-//  sma.cpp
-//  md_modeling
-//
-//  Created by Swabir Silayi on 2/19/18.
-//  Copyright © 2018 Swabir Silayi. All rights reserved.
+*  sma.cpp
+*  md_modeling code
+*  output saved in directory Results 
+* 
+*  Created by Swabir Silayi on 2/19/18.
+*  Copyright © 2018 Swabir Silayi. All rights reserved.
 */
 
 
@@ -23,6 +24,22 @@ random_device rd;
 mt19937 engine(rd());
 uniform_real_distribution<double> dist(0,1);
 
+/**
+ * Reads in the parameters for the simulation from 
+ * input file "mdin". Exits the program if the input 
+ * file is not found.  
+ * 
+ * @param
+ * el - name of element
+ * m  - mass of element
+ * lc - lattice constant
+ * e,ro,A,p,q - parameters for the SMA Potential
+ * N - number of particles
+ * T - simulation temperature
+ * dt - time steps
+ * nSteps - total numer of simulation steps
+ * 
+ */
 
 bool read_in_parameters(string &el, double &m, double &lc,
                         double &e, double &ro, double &A, double &p, double &q,
@@ -50,6 +67,18 @@ bool read_in_parameters(string &el, double &m, double &lc,
     return true;
 }
 
+/**
+ * Initializes the configuration in an fcc crstal structure
+ * Takes in the number of particles and lattice constans and 
+ * assigns the positions as well as calculates the size of the box.
+ * 
+ * @param
+ * N - number of atoms
+ * lc - lattice constant
+ * L - length of simulation box-side (volume = L*L*L
+ * r - particle positons
+ * 
+ */
 void initialize_Positions(int N, double lc, double &L, double ** r) {
     
     // find M large enough to fit N atoms on an fcc lattice
@@ -80,23 +109,6 @@ void initialize_Positions(int N, double lc, double &L, double ** r) {
         }
     }
     
-    
-    double temp[3] ={ 0.0 };
-    
-    for (int j = 0; j < n; j++){
-        for (int i = 0; i < n-1; i++){
-            if(r[i][0] > r[i+1][0] ){
-                
-                for (int k = 0; k < 3; k++){
-                    temp[k] = r[i][k];
-                    r[i][k] = r[i+1][k];
-                    r[i+1][k] = temp[k];
-                }
-            }
-        }
-    }
-    
-    
     // Adjust  so center-of-mass is zero
     double rCM[3] = {0, 0, 0};
     for (int n = 0; n < N; n++)
@@ -113,7 +125,18 @@ void initialize_Positions(int N, double lc, double &L, double ** r) {
     
 }
 
-
+/**
+ * Assigns random initial velocities to the particles and calculates the 
+ * initial Kinetic energy. Velocities are scaled so that they match the 
+ * simulation temperature.
+ * 
+ * @param
+ * N - number of atoms
+ * v - particle velocities
+ * m - element mass
+ * T - simulation temperature
+ * K - kinetic energy
+ */ 
 void initialize_Velocities(int N, double ** v, double m, double T, double &K) {
     
     //Uniform random
@@ -148,7 +171,7 @@ void initialize_Velocities(int N, double ** v, double m, double T, double &K) {
         for (int i = 0; i < 3; i++)
             v[n][i] *= lambda;
     
-    //initial KE
+    //initial KE calculation
     K = 0.0;
     for (int n = 0; n < N; n++)
         for (int i = 0; i < 3; i++)
@@ -156,15 +179,33 @@ void initialize_Velocities(int N, double ** v, double m, double T, double &K) {
     
     K *=0.5;
     
-    
     return;
 }
-
+/**
+ * Calculates the instantaneous temperature in the course 
+ * of the simulation from the Kinetic Energy
+ * 
+ * @param
+ * 
+ * N - number of atoms
+ * K - kinetic energy
+ */
 double instantaneous_temperature(int N, double K) {
     
     return 2.0 * K / ( 3.0 * (N - 1));
     
 }
+/**
+ * Rescales the velocities to match the set simulation
+ * temperature T
+ * 
+ * @param
+ * N - number of atoms
+ * K - Kinetic energy
+ * T - temperature
+ * v - particle velocities
+ * 
+ */
 void rescaleVelocities(int N, double K, double T, double **v) {
     
     
@@ -176,6 +217,21 @@ void rescaleVelocities(int N, double K, double T, double **v) {
     
 }
 
+/**
+ * Initializes the positions, velocities and kinetic energy
+ * 
+ * @param
+ * N - number of atoms
+ * m - mass of atoms
+ * ls - lattice constant
+ * L - length of box side
+ * r - particle positions
+ * v - particle velocities
+ * K - kinetic energy
+ * T - temperature
+ * 
+ */
+
 void initialize_configuration(int N, double m, double lc, double &L,
                               double **r, double **v, double &K, double T){
     
@@ -184,7 +240,13 @@ void initialize_configuration(int N, double m, double lc, double &L,
     
     return;
 }
-
+/**
+ * ensures periodic boundaries
+ *
+ *@param
+ *dr - distance between particles
+ *L - length of box side 
+ */
 void minimum_image(double &dr, double L){
     
     while (dr > 0.5*L)
@@ -196,6 +258,28 @@ void minimum_image(double &dr, double L){
     return;
 }
 
+
+/**
+ * calculates the potential energy, the directional forces per
+ * atom and the resulting acceleration per atom 
+ * 
+ * the forces are the partial derivatives of the sma potential
+ * in x,y,z direction.
+ * f(i) = -dU/di
+ * 
+ * accelerations are a(i) = f(i)/m, i(=x,y,z)
+ * 
+ * @param
+ * N - number of atoms
+ * r - atom positions
+ * a - atom accelerations
+ * f - atom forces
+ * L - length of box side
+ * U - potential energy
+ * m - atomic mass
+ * A,p,q - SMA parameters
+ * 
+ */
 void computeAccelerations(int N, double ** r, double ** a, double **f,
                           double L, double &U, double m, double A, double p, double q ) {
     
@@ -208,10 +292,10 @@ void computeAccelerations(int N, double ** r, double ** a, double **f,
     double rCutOff = 0.49*L;
     
     double sum1 = 0.0, sum2 = 0.0, sum3 = 0.0;
-    double f1[3] = {0.0}, f2[3] = {0.0};
+    double f1[3] = {0.0}, f2[3] = {0.0}, f3[3] = {0.0};
     
     
-    //setting to zero
+    //set all forces and accelerations to zero
     for (i = 0; i < N; i++)
     {
         
@@ -220,29 +304,31 @@ void computeAccelerations(int N, double ** r, double ** a, double **f,
         a[i][0] = 0.0; a[i][1] = 0.0; a[i][2] = 0.0;
     }
     
-    
+    //loop over all atoms
     for (i = 0; i < N; i++)
     {
+        //potential components
         sum1 = 0.0;
         sum2 = 0.0;
         sum3 = 0.0;
         
-        
+        //force components
         f1[3] = {0.0};
         f2[3] = {0.0};
-        
+        f3[3] = {0.0};
         
         for (j = 0; j < i; j++)
         {
             
             if (j != i){
                 
+                //x,y,z dsitances between atoms i,j
                 dx = r[i][0] - r[j][0];
                 dy = r[i][1] - r[j][1];
                 dz = r[i][2] - r[j][2];
                 
                 
-                /*minimum image convention*/
+                //minimum image convention
                 minimum_image(dx, L);
                 minimum_image(dy, L);
                 minimum_image(dz, L);
@@ -250,27 +336,39 @@ void computeAccelerations(int N, double ** r, double ** a, double **f,
                 
                 rij = sqrt (dx * dx + dy * dy + dz * dz);
                 
+                //interact only within the cut-off
                 if (rij <= rCutOff)
                 {
                     rr = rij  - 1.0 ;
                     
+                    //potential component sums over j 
                     sum1 += A * exp (-p * rr );
                     sum2 += exp (-2.0* q * rr );
                     
                     
+                    /**
+                     * force component sums over j
+                     * divide each component by |rij|
+                     * and multiply by (dx, dy, dz)
+                     */
                     
                     double ff1 = (A * p * exp(-p*rr) )/rij;
-                    double ff2 =  q*q*exp(-2.0*q*(rr) )/(rij*rij);
+                    double ff2 =  q*exp(-2.0*q*(rr) )/rij;
+                    double ff3 =  exp( -2.0*q*(rr) );
+                    
                     
                     f1[0] = f1[0] + (ff1*dx);
                     f1[1] = f1[1] + (ff1*dy);
                     f1[2] = f1[2] + (ff1*dz);
                     
                     
-                    f2[0] = f2[0] + (ff2*dx*dx);
-                    f2[1] = f2[1] + (ff2*dy*dy);
-                    f2[2] = f2[2] + (ff2*dz*dz);
+                    f2[0] = f2[0] + (ff2*dx);
+                    f2[1] = f2[1] + (ff2*dy);
+                    f2[2] = f2[2] + (ff2*dz);
                     
+                    f3[0] +=ff3;
+                    f3[1] +=ff3;
+                    f3[2] +=ff3;
             
                 }//end if
                 
@@ -278,15 +376,16 @@ void computeAccelerations(int N, double ** r, double ** a, double **f,
             
         }//end for j
         
+        //combine components, sum over i
         sum3 = sqrt (sum2);
         
         U += 0.5 * ( sum1 - sum3 );
         
-        f[i][0] = 0.5*(f1[0] - sqrt(f2[0]));
-        f[i][1] = 0.5*(f1[1] - sqrt(f2[1]));
-        f[i][2] = 0.5*(f1[2] - sqrt(f2[2]));
+        f[i][0] = 0.5*(f1[0] - sqrt(f2[0]*f2[0]) );
+        f[i][1] = 0.5*(f1[1] - sqrt(f2[1]*f2[1] ));
+        f[i][2] = 0.5*(f1[2] - sqrt(f2[2]*f2[2] ));
                     
-    
+        //calculate accelerations from forces
         a[i][0] = f[i][0]/m;
         a[i][1] = f[i][1]/m;
         a[i][2] = f[i][2]/m;
@@ -297,6 +396,16 @@ void computeAccelerations(int N, double ** r, double ** a, double **f,
     return;
 }
 
+/**
+ * initializes the parameters for radial distribution
+ * 
+ * @param
+ * gr - 1D array for radial distribution
+ * n_bins - number of bins in gr
+ * bin_size - size of box in gr
+ * L - length of box side
+ * 
+ */
 void initialize_gr(double * gr, int n_bins, double &bin_size, double L){
     
     bin_size = (L/(double)(2.0*n_bins) );
@@ -308,6 +417,18 @@ void initialize_gr(double * gr, int n_bins, double &bin_size, double L){
     
 }
 
+/**
+ * updates the radial distribution function
+ * 
+ * @param
+ * 
+ * N - number of atoms
+ * r - particle positions
+ * L - lengtho of box side
+ * gr - 1D array for radial distribution
+ * bin_size - size of box in gr
+ * 
+ */
 void update_gr (int N, double **r, double L, double * gr, double bin_size ) {
     
     double rCutOff = 0.49*L;
@@ -345,14 +466,25 @@ void update_gr (int N, double **r, double L, double * gr, double bin_size ) {
     return;
 }
 
-
+/**
+ * normalize the radial distribution and saves to file
+ * 
+ * @param
+ * N - number of atoms
+ * ngr - number or gr updates
+ * gr - 1D array for radial distribution
+ * nbins - number of bins in gr
+ * dbin - size of bin in gr
+ * L - length of box side
+ * filename - name of file to save radial distribution data
+ */
 void normalize_gr(int N, int ngr, double * gr, int nbins, double dbin, double L, string filename){
     
     ofstream gfile; gfile.open (filename.c_str());
     double rho = (double) N/ (L*L*L);
     
     /* Normalize radial distribution g(r) and save  to file*/
-    for (int i=0; i< nbins-1;i++) {
+    for (int i=0; i< nbins-5;i++) {
         double rr = dbin*(i+0.5);
         double vb=((i+1)*(i+1)*(i+1)-i*i*i)*dbin*dbin*dbin;
         double nid=(4./3.)*M_PI*vb*rho;
@@ -363,7 +495,16 @@ void normalize_gr(int N, int ngr, double * gr, int nbins, double dbin, double L,
     
 }
 
-
+/**
+ * calculates the mean square displacement
+ * 
+ * @param
+ * N - number of atoms
+ * r - particle positions
+ * po - inital positions
+ * msd - mean square dispalcement in x, y and z
+ * 
+ */
 void mean_square_displacement(int N, double ** r, double ** po, double * msd){
     
     msd[0] = 0.0;
@@ -389,7 +530,17 @@ void mean_square_displacement(int N, double ** r, double ** po, double * msd){
     return;
 }
 
-
+/**
+ * calulates the running average and variance of quantity U
+ * 
+ * @param
+ * 
+ * cc - simulaion step count
+ * U - quantity to average
+ * Avg - running average
+ * Var - running variance
+ * 
+ */
 void ave_var(int cc, double &Avg, double &Var, double U)
 {
     
@@ -401,7 +552,17 @@ void ave_var(int cc, double &Avg, double &Var, double U)
     Var /= (cc + 1);
 }
 
-
+/**
+ * writes a snapshot of the configuration to file in xyz format
+ * 
+ * @param
+ * N - number of atoms
+ * el - name of element
+ * r - positions of atoms
+ * v - velocotoes pf atoms
+ * filename - xyz position filename
+ * 
+ */
 
 void save_configuration(int N, string el, double **r, double ** v, string filename){
     
@@ -427,8 +588,17 @@ void save_configuration(int N, string el, double **r, double ** v, string filena
     
 }
 
+
+/**
+ * main program implements the velocity verlet integration
+ * and calculates the potential energy, kinetic energy,
+ * total energy the radial distribution, and mean squared 
+ * displacement 
+ */
 int main(int argc, const char * argv[]){
     
+    
+    //declare simulation parameters
     string el;
     double m;
     double lc;
@@ -438,10 +608,12 @@ int main(int argc, const char * argv[]){
     double dt;
     int nSteps;
     
+    //intialize parameters from input file
     bool check = read_in_parameters(el, m, lc, e, ro, A, p, q, N, Tt, dt, nSteps);
     if(!check) return 0;
     
     
+    //declare positon, velocity, force and acceleration variables
     double ** r;
     double ** v;
     double ** f;
@@ -470,26 +642,26 @@ int main(int argc, const char * argv[]){
     std::string hmf = hf.str();
     hfile.open(hmf.c_str(), ios_base::app);
     
-    const double kb = 8.6173303e-5;  // eV K-1
     
+    //Boltzmann constant to convert Temperature from Kelvin to eV
+    const double kb = 8.6173303e-5;  // eV K-1
     double T = kb*Tt;
     
-    
+    //declare variables for energy and temperature
     double U = 0.0; double UAvg = 0.0, UVar=0.0;
     double K = 0.0; double KAvg = 0.0, KVar=0.0;
     double E = 0.0; double EAvg = 0.0, EVar=0.0;
     double iT = 0.0; double iTAvg = 0.0, iTVar=0.0;
     
     
+    //compute inital values and save initial configuration
     initialize_configuration(N, m, lc, L, r, v, K, T);
-    
-    
     computeAccelerations( N, r, a, f, L, U, m, A, p, q);
-    
-    
     save_configuration(N, el, r, v, "Results/init.xyz");
     
-    const int n_bins = 80;
+    
+    //set up radial distribution
+    const int n_bins = 150;
     double bin_size;
     double *gr;
     gr = new double [n_bins];
@@ -498,7 +670,7 @@ int main(int argc, const char * argv[]){
     
     
     //mean square displacement
-    //initial positions
+    //record initial positions
     double ** po;
     po = new double * [N];
     for (int i = 0; i < N; i++){
@@ -518,18 +690,19 @@ int main(int argc, const char * argv[]){
     }
     
     
-    
+    //set up counters
     int cc = 0; int ngr = 0;
+    
+    //loop for integration time steps 
     for (int n = 0; n < nSteps; n++)
     {
         
-        //loop over atoms
+        //loop over atoms and update positions using the velocity verlet algorithm
         for (int i = 0; i < N; i++){
             
             for (int k = 0; k < 3; k++){
                 
                 r[i][k] = r[i][k] + v[i][k]*dt + 0.5* a[i][k]* dt*dt;
-                
                 
                 //periodic boundary conditions
                 while (r[i][k] > 0.5*L)
@@ -538,7 +711,7 @@ int main(int argc, const char * argv[]){
                 while (r[i][k] < -0.5*L)
                     r[i][k] = r[i][k] + L;
                 
-                
+                //first update of velocity
                 v[i][k] = v[i][k] + 0.5 * a[i][k]*dt;
                 
             }
@@ -547,6 +720,7 @@ int main(int argc, const char * argv[]){
         
         computeAccelerations( N, r, a, f, L, U, m, A, p, q);
         
+        //complete velocity update and recalculate kinetic energy
         K = 0.0;
         for (int i = 0; i < N; i++)
         {
@@ -562,9 +736,8 @@ int main(int argc, const char * argv[]){
         
         iT = instantaneous_temperature(N, K)/kb;
         
-        
-        
         //production steps
+        //compute averages and radial distribution after equilibration
         if (n > int(0.5*nSteps))
         {
             
@@ -584,8 +757,8 @@ int main(int argc, const char * argv[]){
         }
         
         
-       
-        if ( n % 5 == 0  )
+       //rescale velocities every nf steps
+        if ( n % 50== 0  )
             rescaleVelocities(N, K, T, v);
         
         cout << n << "\t" << iTAvg << "\t" << KAvg << "\t" << UAvg << "\t" << EAvg << "\n";
@@ -622,8 +795,7 @@ int main(int argc, const char * argv[]){
     //  }//end loop over temperature
     
     
-    
-    
+    //clean out
     free (r);
     free (v);
     free (f);
