@@ -4,7 +4,7 @@
 *  output saved in directory Results 
 * 
 *  Created by Swabir Silayi on 2/19/18.
-*  Copyright © 2018 Swabir Silayi. All rights reserved.
+*  
 */
 
 
@@ -223,7 +223,7 @@ void rescaleVelocities(int N, double K, double T, double **v) {
  * @param
  * N - number of atoms
  * m - mass of atoms
- * ls - lattice constant
+ * lc - lattice constant
  * L - length of box side
  * r - particle positions
  * v - particle velocities
@@ -292,7 +292,7 @@ void computeAccelerations(int N, double ** r, double ** a, double **f,
     double rCutOff = 0.49*L;
     
     double sum1 = 0.0, sum2 = 0.0, sum3 = 0.0;
-    double f1[3] = {0.0}, f2[3] = {0.0}, f3[3] = {0.0};
+    double f1[3] = {0.0}, f2[3] = {0.0}, f3 = 0.0;
     
     
     //set all forces and accelerations to zero
@@ -315,9 +315,9 @@ void computeAccelerations(int N, double ** r, double ** a, double **f,
         //force components
         f1[3] = {0.0};
         f2[3] = {0.0};
-        f3[3] = {0.0};
+        f3 = 0.0;
         
-        for (j = 0; j < i; j++)
+        for (j = 0; j < N; j++)
         {
             
             if (j != i){
@@ -346,17 +346,15 @@ void computeAccelerations(int N, double ** r, double ** a, double **f,
                     sum2 += exp (-2.0* q * rr );
                     
                     
-                    /**
-                     * force component sums over j
-                     * divide each component by |rij|
-                     * and multiply by (dx, dy, dz)
-                     */
+                    //
+                    // force component sums over j
+                    // divide each component by |rij|
+                    // and multiply by (dx, dy, dz)
+                    //
                     
                     double ff1 = (A * p * exp(-p*rr) )/rij;
-                    double ff2 =  q*exp(-2.0*q*(rr) )/rij;
-                    double ff3 =  exp( -2.0*q*(rr) );
-                    
-                    
+                    double ff2 = q* sqrt(exp(-2.0*q*(rr) ) )/rij;
+                   
                     f1[0] = f1[0] + (ff1*dx);
                     f1[1] = f1[1] + (ff1*dy);
                     f1[2] = f1[2] + (ff1*dz);
@@ -366,29 +364,33 @@ void computeAccelerations(int N, double ** r, double ** a, double **f,
                     f2[1] = f2[1] + (ff2*dy);
                     f2[2] = f2[2] + (ff2*dz);
                     
-                    f3[0] +=ff3;
-                    f3[1] +=ff3;
-                    f3[2] +=ff3;
-            
+                    f3 +=  exp(-2.0*q*(rr) );
+                      
                 }//end if
                 
             }//end if j .ne. i
             
         }//end for j
         
+        
         //combine components, sum over i
         sum3 = sqrt (sum2);
         
         U += 0.5 * ( sum1 - sum3 );
         
-        f[i][0] = 0.5*(f1[0] - sqrt(f2[0]*f2[0]) );
-        f[i][1] = 0.5*(f1[1] - sqrt(f2[1]*f2[1] ));
-        f[i][2] = 0.5*(f1[2] - sqrt(f2[2]*f2[2] ));
-                    
+        f3 = sqrt (f3);
+        
+        f[i][0] = 0.5*(f1[0] - f2[0]/f3);
+        f[i][1] = 0.5*(f1[1] - f2[1]/f3);
+        f[i][2] = 0.5*(f1[2] - f2[2]/f3);
+          
+          
+          
         //calculate accelerations from forces
-        a[i][0] = f[i][0]/m;
-        a[i][1] = f[i][1]/m;
-        a[i][2] = f[i][2]/m;
+        a[i][0] = 0.5*f[i][0]/m;
+        a[i][1] = 0.5*f[i][1]/m;
+        a[i][2] = 0.5*f[i][2]/m;
+        
         
     }//end loop over i
     
@@ -758,7 +760,7 @@ int main(int argc, const char * argv[]){
         
         
        //rescale velocities every nf steps
-        if ( n % 50== 0  )
+        if ( n % 150== 0  )
             rescaleVelocities(N, K, T, v);
         
         cout << n << "\t" << iTAvg << "\t" << KAvg << "\t" << UAvg << "\t" << EAvg << "\n";
